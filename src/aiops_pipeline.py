@@ -34,7 +34,8 @@ def run_pipeline(file_path):
     return {
         "records_processed": len(data),
         "anomalies_detected": detected_events,
-        "events_consumed": consumed_events
+        "events_consumed": consumed_events,
+        "aiops_results": consumer.processed_events
     }
 
 
@@ -48,11 +49,11 @@ if __name__ == "__main__":
     print(f"Records processed: {result['records_processed']}")
     print(f"Anomalies detected: {len(result['anomalies_detected'])}")
     print(f"Events consumed: {len(result['events_consumed'])}")
+    print(f"AIOps results: {len(result['aiops_results'])}")
 
-    print("\nDetected Events:")
+    print("\nProcessed AIOps Events:")
 
-    for event in result["events_consumed"]:
-        print(f"\nService: {event['service']}")
-        print(f"Timestamp: {event['timestamp']}")
-        print(f"Type: {event['type']}")
-        print(f"Reasons: {', '.join(event['reasons'])}")
+    for result in result["aiops_results"]:
+        print(f"\nService: {result['service']}")
+        print(f"Timestamp: {result['timestamp']}")
+        print(f"Issue: {result['issue']}")

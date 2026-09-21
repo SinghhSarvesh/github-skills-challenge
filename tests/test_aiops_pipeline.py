@@ -70,3 +70,14 @@ def test_consumer_receives_event():
     messages = consumer.consume()
 
     assert len(messages) == 1
+    assert len(consumer.processed_events) == 1
+    assert consumer.processed_events[0]["service"] == "payment-service"
+
+
+def test_pipeline_delivers_processed_event_to_aiops():
+    result = run_pipeline("data/service_data.json")
+
+    assert len(result["aiops_results"]) == 2
+    assert result["aiops_results"][0]["issue"] == (
+        "High response time; Error log detected"
+    )
