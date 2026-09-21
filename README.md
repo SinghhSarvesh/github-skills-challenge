@@ -36,8 +36,8 @@ producer/topic/consumer workflow.
 | Anomaly detection | [`src/anomaly_detector.py`](src/anomaly_detector.py) | Applies fixed thresholds and flags concerning `WARNING` or `ERROR` log levels. |
 | Event production | [`src/event_producer.py`](src/event_producer.py) | Publishes a detected event to an in-memory topic. |
 | Event topic | [`src/event_topic.py`](src/event_topic.py) | Stores published messages in memory and returns them to consumers. |
-| Event consumption | [`src/event_consumer.py`](src/event_consumer.py) | Reads anomaly events from the topic. |
-| Final AIOps processing | [`src/aiops_pipeline.py`](src/aiops_pipeline.py) | Loads data, invokes detection, publishes anomalies, consumes them, and prints the final report. |
+| Event consumption | [`src/event_consumer.py`](src/event_consumer.py) | Reads and processes anomaly events from the topic. |
+| Final AIOps processing | [`src/event_consumer.py`](src/event_consumer.py) and [`src/aiops_pipeline.py`](src/aiops_pipeline.py) | Creates downstream issue results and prints the final report. |
 
 `src/calculations.py` is an unrelated example module covered by the original
 unit tests; it is not part of the AIOps path.
@@ -99,14 +99,17 @@ service_data.json
 		-> EventProducer.publish(event)
 		-> shared EventTopic("anomaly-events")
 		-> EventConsumer.consume()
-		-> AIOps pipeline result and report
+		-> EventConsumer.process()
+		-> downstream AIOps result and report
 ```
 
 The producer and consumer must use the same topic instance. The original
 workflow created separate `service-events` and `anomaly-events` topics, so the
 consumer received zero messages. That was corrected by sharing one
 `anomaly-events` topic. The original detector checked only `WARNING`, while the
-provided incidents use `ERROR`; it now treats both levels as concerning.
+provided incidents use `ERROR`; it now treats both levels as concerning. The
+consumer also validates each anomaly and creates a downstream AIOps result
+containing the service, timestamp, issue summary, and source event.
 
 ## Final Execution
 
@@ -122,12 +125,16 @@ The verified result is:
 Records processed: 10
 Anomalies detected: 2
 Events consumed: 2
+AIOps results: 2
 ```
 
 The consumed events are the `10:05` payment timeout and the `10:06` database
 connection timeout, with the metric and log reasons shown above. This confirms
 the complete path from operational data through detection, event generation,
-publication, consumption, and final AIOps output.
+publication, consumption, downstream processing, and final AIOps output. The
+final issue summaries are `High response time; Error log detected` for the
+`10:05` timeout and `High response time; High CPU utilization; High memory
+utilization; Error log detected` for the `10:06` database timeout.
 
 ## Validation
 
@@ -142,6 +149,8 @@ assert result["records_processed"] == 10
 assert len(result["anomalies_detected"]) == 2
 assert len(result["events_consumed"]) == 2
 assert result["events_consumed"] == result["anomalies_detected"]
+assert len(result["aiops_results"]) == 2
+assert result["aiops_results"][0]["service"] == "payment-service"
 PY
 ```
 
